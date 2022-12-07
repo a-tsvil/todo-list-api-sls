@@ -1,16 +1,178 @@
 org: atsvil
 app: todo-list-api-sls
 service: todo-list-api-sls
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
   runtime: nodejs14.x
 
 functions:
-  hello:
-    handler: handler.hello
+  getTodos:
+    handler: src/todos.get
+    role: scanTodoItemLambdaRole
     events:
       - httpApi:
-          path: /
+          path: ${self:custom.apiV1}todo
           method: get
+  createTodo:
+    handler: src/todos.put
+    role: createTodoItemLambdaRole
+    events:
+      - httpApi:
+          path: ${self:custom.apiV1}todo
+          method: put
+  getTodo:
+    handler: src/todo.get
+    role: getTodoItemLambdaRole
+    events:
+      - httpApi:
+          path: ${self:custom.apiV1}todo/{todo_id}
+          method: get
+  updateTodo:
+    handler: src/todo.put
+    role: updateTodoItemLambdaRole
+    events:
+      - httpApi:
+          path: ${self:custom.apiV1}todo/{todo_id}
+          method: put
+  deleteTodo:
+    handler: src/todo.delete
+    role: deleteTodoItemLambdaRole
+    events:
+      - httpApi:
+          path: ${self:custom.apiV1}todo/{todo_id}
+          method: delete
+
+resources:
+  Resources:
+    todoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: todoTable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+    createTodoItemLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: createTodoItemLambdaRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DynamoDBWriteAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                  Resource:
+                    "Fn::GetAtt": [todoTable, Arn]
+
+    scanTodoItemLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: scanTodoItemLambdaRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DynamoDBWriteAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                  Resource:
+                    "Fn::GetAtt": [todoTable, Arn]
+    getTodoItemLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: getTodoItemLambdaRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DynamoDBWriteAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource:
+                    "Fn::GetAtt": [todoTable, Arn]
+
+    updateTodoItemLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: updateTodoItemLambdaRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DynamoDBWriteAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                  Resource:
+                    "Fn::GetAtt": [todoTable, Arn]
+
+    deleteTodoItemLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: deleteTodoItemLambdaRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DynamoDBWriteAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:DeleteItem
+                  Resource:
+                    "Fn::GetAtt": [todoTable, Arn]
+custom:
+  apiV1: "/v1/"
