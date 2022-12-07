@@ -20,7 +20,7 @@ module.exports.get = async (event) => {
       })
       .promise();
 
-    return okJson(result.Item);
+    return okJson([result.Item]);
   } catch (error) {
     console.error(error);
     return badRequestJson({
